@@ -536,7 +536,15 @@
         
         <div class="search-section">
             <h3>🔍 Check Customer Address</h3>
-            <input type="text" id="addressInput" placeholder="Start typing customer address...">
+            <input 
+                type="text" 
+                id="addressInput" 
+                placeholder="Start typing customer address..."
+                onkeypress="if(event.key === 'Enter') { event.preventDefault(); searchAddress(); }"
+            >
+            <div style="font-size: 11px; color: #666; margin-top: 5px; margin-bottom: 5px;">
+                💡 Type address, then click "Check Distance" or press Enter
+            </div>
             <div class="button-group">
                 <button class="btn-success" id="searchBtn" onclick="searchAddress()">
                     Check Distance
@@ -948,10 +956,14 @@
                 
                 autocomplete.bindTo('bounds', map);
                 
-                autocomplete.addListener('place_changed', function() {
-                    const place = autocomplete.getPlace();
-                    if (place.geometry) {
-                        searchAddress();
+                // REMOVED: Automatic search on place selection
+                // User must click "Check Distance" button to search
+                // This prevents accidental API calls and gives user control
+                
+                // Prevent autocomplete from submitting on Enter
+                google.maps.event.addDomListener(input, 'keydown', function(e) {
+                    if (e.keyCode === 13) {
+                        e.preventDefault();
                     }
                 });
                 
