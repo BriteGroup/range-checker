@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brite Skoda - Service Range Checker</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        /* Password Protection Overlay */
+        .password-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+        }
+        
+        .password-overlay.hidden {
+            display: none;
+        }
+        
+        .password-box {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+        
+        .password-box h2 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 24px;
+        }
+        
+        .password-box .subtitle {
+            color: #666;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+        
+        .password-box input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+        
+        .password-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .password-box button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        
+        .password-box button:hover {
+            transform: translateY(-2px);
+        }
+        
+        .password-box .error-message {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 10px;
+            display: none;
+        }
+        
+        .password-box .error-message.show {
+            display: block;
+            animation: shake 0.5s;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        .password-box .footer-note {
+            margin-top: 20px;
+            font-size: 12px;
+            color: #999;
+        }
+        
+        #map {
+            height: 100vh;
+            width: 100%;
+        }
+        
+        .control-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            max-width: 450px;
+            z-index: 5;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .brand-header {
+            background: linear-gradient(135deg, #1e7e34 0%, #28a745 100%);
+            color: white;
+            padding: 15px;
+            margin: -20px -20px 15px -20px;
+            border-radius: 10px 10px 0 0;
+            text-align: center;
+        }
+        
+        .brand-header h2 {
+            margin: 0;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .brand-header .subtitle {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        
+        .usage-monitor {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .usage-monitor h3 {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .usage-bar {
+            background: rgba(255, 255, 255, 0.3);
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        
+        .usage-fill {
+            background: white;
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .usage-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        
+        .sync-status {
+            font-size: 10px;
+            opacity: 0.8;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .sync-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .usage-warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            font-size: 12px;
+            display: none;
+        }
+        
+        .usage-critical {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        
+        .usage-blocked {
+            background: #721c24;
+            color: white;
+            border: none;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .location-selector {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .location-selector h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .location-options {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .location-option {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .location-option:hover {
+            border-color: #4285f4;
+            background: #f0f7ff;
+        }
+        
+        .location-option.selected {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+        
+        .location-option input[type="radio"] {
+            margin-right: 10px;
+        }
+        
+        .location-details {
+            flex: 1;
+        }
+        
+        .location-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 2px;
+        }
+        
+        .location-address {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .search-section {
+            margin: 15px 0;
+        }
+        
+        .search-section h3 {
+            margin: 0 0 10px 0;
+            color: #555;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        #addressInput {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        #addressInput:focus {
+            outline: none;
+            border-color: #4285f4;
+        }
+        
+        #addressInput:disabled {
+            background: #f5f5f5;
+            cursor: not-allowed;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        
+        button:hover:not(:disabled) {
+            opacity: 0.9;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-info {
+            background-color: #17a2b8;
+            color: white;
+        }
+        
+        .result-message {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 5px;
+            font-size: 14px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .result-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .result-failure {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .result-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .result-info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .spinner {
+            display: none;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #28a745;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 600px) {
+            .control-panel {
+                left: 10px;
+                right: 10px;
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Password Protection Overlay -->
+    <div class="password-overlay" id="passwordOverlay">
+        <div class="password-box">
+            <h2>🔒 Brite Skoda Access</h2>
+            <p class="subtitle">Enter password to continue</p>
+            <input 
+                type="password" 
+                id="passwordInput" 
+                placeholder="Enter password"
+                autocomplete="off"
+                onkeypress="if(event.key === 'Enter') checkPassword()"
+            />
+            <button onclick="checkPassword()">Unlock</button>
+            <div class="error-message" id="errorMessage">
+                ❌ Incorrect password. Please try again.
+            </div>
+            <div class="footer-note">
+                Contact IT support if you don't have access
+            </div>
+        </div>
+    </div>
+    
+    <div id="map"></div>
+    
+    <div class="control-panel">
+        <div class="brand-header">
+            <h2>🚗 Brite Skoda</h2>
+            <div class="subtitle">Service Range Checker - 10km Driving Distance (≈7km radius)</div>
+        </div>
+        
+        <div class="usage-monitor">
+            <h3>Daily API Usage (All Users Combined)</h3>
+            <div class="usage-bar">
+                <div class="usage-fill" id="usageFill" style="width: 0%"></div>
+            </div>
+            <div class="usage-stats">
+                <span id="usageCount">0 / 150</span>
+                <span id="usagePercent">0%</span>
+            </div>
+            <div class="sync-status">
+                <span class="sync-indicator"></span>
+                <span id="syncStatus">Synced with Google Sheets</span>
+            </div>
+        </div>
+        
+        <div class="usage-warning" id="usageWarning">
+            <strong>⚠️ Approaching Limit</strong><br>
+            You're approaching the daily API limit.
+        </div>
+        
+        <div class="location-selector">
+            <h3>📍 Select Service Center Location</h3>
+            <div class="location-options">
+                <label class="location-option">
+                    <input type="radio" name="serviceLocation" value="sector6" checked>
+                    <div class="location-details">
+                        <div class="location-name">Noida Sector 6</div>
+                        <div class="location-address">G-43, Udhyog Marg, G Block, Sector 6</div>
+                    </div>
+                </label>
+                
+                <label class="location-option">
+                    <input type="radio" name="serviceLocation" value="sector60">
+                    <div class="location-details">
+                        <div class="location-name">Noida Sector 60</div>
+                        <div class="location-address">A-17/18, Block A, Sector 60</div>
+                    </div>
+                </label>
+                
+                <label class="location-option">
+                    <input type="radio" name="serviceLocation" value="ghaziabad">
+                    <div class="location-details">
+                        <div class="location-name">Ghaziabad</div>
+                        <div class="location-address">E-19, Arya Nagar, Patel Nagar</div>
+                    </div>
+                </label>
+                
+                <label class="location-option">
+                    <input type="radio" name="serviceLocation" value="greaternoida">
+                    <div class="location-details">
+                        <div class="location-name">Greater Noida</div>
+                        <div class="location-address">IA, Surajpur-Kasna Rd, UPSIDA</div>
+                    </div>
+                </label>
+                
+                <label class="location-option">
+                    <input type="radio" name="serviceLocation" value="meerut">
+                    <div class="location-details">
+                        <div class="location-name">Meerut</div>
+                        <div class="location-address">Khasra No 180, 181, Delhi Rd, Industrial Area</div>
+                    </div>
+                </label>
+            </div>
+        </div>
+        
+        <div class="search-section">
+            <h3>🔍 Check Customer Address</h3>
+            <input 
+                type="text" 
+                id="addressInput" 
+                placeholder="Start typing customer address..."
+                onkeypress="if(event.key === 'Enter') { event.preventDefault(); searchAddress(); }"
+            >
+            <div style="font-size: 11px; color: #666; margin-top: 5px; margin-bottom: 5px;">
+                💡 Type address, then click "Check Distance" or press Enter
+            </div>
+            <div class="button-group">
+                <button class="btn-success" id="searchBtn" onclick="searchAddress()">
+                    Check Distance
+                </button>
+                <button class="btn-danger" onclick="clearAll()">
+                    Clear Map
+                </button>
+            </div>
+            <button class="btn-info" onclick="refreshUsage()" style="width: 100%; margin-top: 5px;">
+                🔄 Refresh Usage Stats
+            </button>
+            <button class="btn-danger" onclick="logout()" style="width: 100%; margin-top: 5px; font-size: 12px; opacity: 0.7;">
+                🔒 Logout
+            </button>
+            <div class="spinner" id="spinner"></div>
+            <div id="result"></div>
+        </div>
+    </div>
+    
+    <script>
+        // ============================================
+        // PASSWORD PROTECTION
+        // ============================================
+        
+        // Set your password here (change this to your desired password)
+        const CORRECT_PASSWORD = 'Brite_Skoda@2025#&';  // Password for team access
+        
+        // Password session management
+        const PASSWORD_SESSION_KEY = 'brite_skoda_auth';
+        const SESSION_DURATION = 8 * 60 * 60 * 1000; // 8 hours in milliseconds
+        
+        // Check if already authenticated
+        function isAuthenticated() {
+            const authData = localStorage.getItem(PASSWORD_SESSION_KEY);
+            if (!authData) return false;
+            
+            try {
+                const { timestamp } = JSON.parse(authData);
+                const now = new Date().getTime();
+                
+                // Check if session is still valid
+                if (now - timestamp < SESSION_DURATION) {
+                    return true;
+                } else {
+                    // Session expired
+                    localStorage.removeItem(PASSWORD_SESSION_KEY);
+                    return false;
+                }
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        // Save authentication
+        function saveAuthentication() {
+            const authData = {
+                timestamp: new Date().getTime()
+            };
+            localStorage.setItem(PASSWORD_SESSION_KEY, JSON.stringify(authData));
+        }
+        
+        // Check password
+        function checkPassword() {
+            const input = document.getElementById('passwordInput');
+            const overlay = document.getElementById('passwordOverlay');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            if (input.value === CORRECT_PASSWORD) {
+                // Correct password
+                saveAuthentication();
+                overlay.classList.add('hidden');
+                input.value = '';
+                errorMessage.classList.remove('show');
+                
+                // Initialize the app
+                initializeApp();
+            } else {
+                // Wrong password
+                errorMessage.classList.add('show');
+                input.value = '';
+                input.focus();
+                
+                // Hide error message after 3 seconds
+                setTimeout(() => {
+                    errorMessage.classList.remove('show');
+                }, 3000);
+            }
+        }
+        
+        // Check authentication on page load
+        if (isAuthenticated()) {
+            document.getElementById('passwordOverlay').classList.add('hidden');
+        } else {
+            // Focus on password input
+            setTimeout(() => {
+                document.getElementById('passwordInput').focus();
+            }, 500);
+        }
+        
+        // ============================================
+        // MAIN APPLICATION CODE
+        // ============================================
+        
+        // Configuration
+        const API_KEY = 'AIzaSyAh19hmN2N77PxDzHNI-K9bB2XgyxP8Og0';
+        const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbybPrQQ1mM7oqu-bxVURoTmpIc0QBcFkt9fp0WQE5qmc1Jx4FNHU4pzXfMfhoakabhU8g/exec';
+        
+        // Service Center Locations
+        const SERVICE_LOCATIONS = {
+            sector6: {
+                name: 'Noida Sector 6',
+                address: 'No G, 43, Udhyog Marg, G Block, Sector 6, Noida, UP 201301',
+                lat: 28.593889943936937,
+                lng: 77.32320741208792
+            },
+            sector60: {
+                name: 'Noida Sector 60',
+                address: 'A-17/18, Block A, Sector 60, Noida, UP 201309',
+                lat: 28.605470022224065,
+                lng: 77.36965591208826
+            },
+            ghaziabad: {
+                name: 'Ghaziabad',
+                address: 'E 19, Arya Nagar, Block G, Patel Nagar, Ghaziabad, UP 201009',
+                lat: 28.6777469692881,
+                lng: 77.42674872743143
+            },
+            greaternoida: {
+                name: 'Greater Noida',
+                address: 'IA, Surajpur-Kasna Rd, Block D, UPSIDA, Greater Noida, UP 201315',
+                lat: 28.45127466718474,
+                lng: 77.53230001705845
+            },
+            meerut: {
+                name: 'Meerut',
+                address: 'Khasra No 180, 181, Delhi Rd, Phase I, Industrial Area, Mohkam Pur, Meerut, UP 250002',
+                lat: 28.95118556824091,
+                lng: 77.67709788695687
+            }
+        };
+        
+        let map;
+        let serviceMarkers = {};
+        let radiusCircle;
+        let searchedMarkers = [];
+        let currentServiceLocation = 'sector6';
+        let autocomplete;
+        let geocoder;
+        let distanceService;
+        let directionsService;
+        let directionsRenderer;
+        let currentUsage = { count: 0, limit: 150, canSearch: true };
+        let callbackCounter = 0;
+        
+        console.log('🚀 Brite Skoda Range Checker Initialized');
+        console.log('📍 Web App URL:', WEB_APP_URL);
+        
+        // Check usage immediately when script loads
+        console.log('🚀 Brite Skoda Range Checker Loading...');
+        
+        // Initialize app function (called after password check)
+        function initializeApp() {
+            console.log('✅ Authenticated - Initializing app...');
+            checkUsage();
+        }
+        
+        // Check usage as soon as possible (only if authenticated)
+        window.onload = function() {
+            if (isAuthenticated()) {
+                console.log('✅ Page loaded, checking usage...');
+                checkUsage();
+            }
+        };
+        
+        // Also check when DOM is ready (faster than window.onload)
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                if (isAuthenticated()) {
+                    console.log('📄 DOM ready, checking usage...');
+                    checkUsage();
+                }
+            });
+        } else {
+            // DOM already loaded
+            if (isAuthenticated()) {
+                checkUsage();
+            }
+        }
+        
+        // JSONP request helper
+        function jsonpRequest(url, callback) {
+            const callbackName = 'jsonpCallback' + (callbackCounter++);
+            
+            window[callbackName] = function(data) {
+                callback(null, data);
+                document.head.removeChild(script);
+                delete window[callbackName];
+            };
+            
+            const script = document.createElement('script');
+            script.src = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'callback=' + callbackName;
+            script.onerror = function() {
+                callback(new Error('JSONP request failed'));
+                document.head.removeChild(script);
+                delete window[callbackName];
+            };
+            
+            document.head.appendChild(script);
+        }
+        
+        // Check usage from Google Sheets using JSONP
+        function checkUsage() {
+            console.log('📊 Checking usage from Google Sheets...');
+            
+            jsonpRequest(WEB_APP_URL, function(error, data) {
+                if (error) {
+                    console.error('❌ Error checking usage:', error);
+                    document.getElementById('syncStatus').textContent = 'Sync error - using local';
+                    document.querySelector('.sync-indicator').style.background = '#dc3545';
+                    updateUsageFromLocal();
+                    return;
+                }
+                
+                console.log('✅ Usage response:', data);
+                
+                if (data.success) {
+                    currentUsage = data;
+                    updateUsageUI(data);
+                    
+                    if (!data.canSearch) {
+                        disableSearch('Daily limit reached (all users combined)');
+                    }
+                    
+                    document.getElementById('syncStatus').textContent = 'Synced with Google Sheets';
+                    document.querySelector('.sync-indicator').style.background = '#4caf50';
+                } else {
+                    console.error('❌ Failed to get usage data:', data.error);
+                    updateUsageFromLocal();
+                }
+            });
+        }
+        
+        // Update usage from local storage (fallback)
+        function updateUsageFromLocal() {
+            console.log('📦 Using local storage fallback');
+            const today = new Date().toDateString();
+            const stored = localStorage.getItem('brite_skoda_usage_local');
+            let data = stored ? JSON.parse(stored) : { date: today, count: 0 };
+            
+            if (data.date !== today) {
+                data = { date: today, count: 0 };
+            }
+            
+            currentUsage = {
+                count: data.count,
+                limit: 150,
+                canSearch: data.count < 150,
+                remaining: Math.max(0, 150 - data.count)
+            };
+            
+            updateUsageUI(currentUsage);
+        }
+        
+        // Update usage UI
+        function updateUsageUI(data) {
+            const percent = Math.min(100, (data.count / data.limit) * 100);
+            
+            document.getElementById('usageFill').style.width = percent + '%';
+            document.getElementById('usageCount').textContent = 
+                `${data.count} / ${data.limit} searches`;
+            document.getElementById('usagePercent').textContent = 
+                Math.round(percent) + '%';
+            
+            const fill = document.getElementById('usageFill');
+            if (percent >= 100) {
+                fill.style.background = '#dc3545';
+            } else if (percent >= 80) {
+                fill.style.background = '#ffc107';
+            } else {
+                fill.style.background = 'white';
+            }
+            
+            const warning = document.getElementById('usageWarning');
+            if (!data.canSearch) {
+                warning.style.display = 'block';
+                warning.className = 'usage-warning usage-blocked';
+                warning.innerHTML = 
+                    '<strong>🚫 Daily Limit Reached</strong><br>' +
+                    'Combined usage limit reached across all users.';
+                disableSearch('Daily limit reached');
+            } else if (data.count >= data.limit * 0.8) {
+                warning.style.display = 'block';
+                warning.className = 'usage-warning usage-critical';
+                warning.innerHTML = 
+                    `<strong>⚠️ Approaching Limit</strong><br>` +
+                    `Only ${data.remaining || 0} searches remaining today (all users).`;
+            } else {
+                warning.style.display = 'none';
+            }
+        }
+        
+        // Log usage to Google Sheets using JSONP GET request
+        function logUsage(searchData, callback) {
+            console.log('📝 Logging usage to Google Sheets:', searchData);
+            
+            const params = new URLSearchParams({
+                serviceLocation: searchData.serviceLocation,
+                customerAddress: searchData.customerAddress,
+                distance: searchData.distance,
+                inRange: searchData.inRange,
+                userIP: searchData.userIP
+            });
+            
+            const url = WEB_APP_URL + '?' + params.toString();
+            console.log('🔗 Log URL:', url);
+            
+            jsonpRequest(url, function(error, data) {
+                if (error) {
+                    console.error('❌ Error logging usage:', error);
+                    // Fallback to local storage
+                    const today = new Date().toDateString();
+                    const stored = localStorage.getItem('brite_skoda_usage_local');
+                    let localData = stored ? JSON.parse(stored) : { date: today, count: 0 };
+                    
+                    if (localData.date !== today) {
+                        localData = { date: today, count: 0 };
+                    }
+                    
+                    localData.count++;
+                    localStorage.setItem('brite_skoda_usage_local', JSON.stringify(localData));
+                    updateUsageFromLocal();
+                    callback(true);
+                    return;
+                }
+                
+                console.log('✅ Log response:', data);
+                
+                if (data.success) {
+                    currentUsage = data;
+                    updateUsageUI(data);
+                    callback(true);
+                } else {
+                    console.error('❌ Failed to log usage:', data.error);
+                    callback(false);
+                }
+            });
+        }
+        
+        // Disable search
+        function disableSearch(message) {
+            const input = document.getElementById('addressInput');
+            const btn = document.getElementById('searchBtn');
+            input.disabled = true;
+            input.placeholder = message || 'Daily limit reached';
+            btn.disabled = true;
+            btn.textContent = '🚫 Limit Reached';
+        }
+        
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem(PASSWORD_SESSION_KEY);
+                location.reload();
+            }
+        }
+        
+        // Refresh usage stats
+        function refreshUsage() {
+            console.log('🔄 Refreshing usage stats...');
+            document.getElementById('syncStatus').textContent = 'Refreshing...';
+            checkUsage();
+        }
+        
+        // Initialize Google Maps
+        function initMap() {
+            try {
+                console.log('🗺️ Initializing Google Maps...');
+                checkUsage();
+                
+                const defaultLocation = SERVICE_LOCATIONS.sector6;
+                
+                map = new google.maps.Map(document.getElementById('map'), {
+                    zoom: 12,
+                    center: { lat: defaultLocation.lat, lng: defaultLocation.lng },
+                    mapTypeControl: true,
+                    streetViewControl: false,
+                    fullscreenControl: true,
+                    zoomControl: true
+                });
+                
+                geocoder = new google.maps.Geocoder();
+                distanceService = new google.maps.DistanceMatrixService();
+                directionsService = new google.maps.DirectionsService();
+                directionsRenderer = new google.maps.DirectionsRenderer({
+                    map: map,
+                    suppressMarkers: true,
+                    polylineOptions: {
+                        strokeColor: '#4285f4',
+                        strokeOpacity: 0.6,
+                        strokeWeight: 4
+                    }
+                });
+                
+                const input = document.getElementById('addressInput');
+                autocomplete = new google.maps.places.Autocomplete(input, {
+                    componentRestrictions: { country: 'in' },
+                    fields: ['address_components', 'geometry', 'name', 'formatted_address']
+                });
+                
+                autocomplete.bindTo('bounds', map);
+                
+                // REMOVED: Automatic search on place selection
+                // User must click "Check Distance" button to search
+                // This prevents accidental API calls and gives user control
+                
+                // Prevent autocomplete from submitting on Enter
+                google.maps.event.addDomListener(input, 'keydown', function(e) {
+                    if (e.keyCode === 13) {
+                        e.preventDefault();
+                    }
+                });
+                
+                addServiceMarkers();
+                updateServiceLocation('sector6');
+                
+                document.querySelectorAll('input[name="serviceLocation"]').forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        updateServiceLocation(e.target.value);
+                        clearAll();
+                    });
+                });
+                
+                document.querySelectorAll('.location-option').forEach(option => {
+                    option.addEventListener('click', function() {
+                        document.querySelectorAll('.location-option').forEach(opt => {
+                            opt.classList.remove('selected');
+                        });
+                        this.classList.add('selected');
+                    });
+                });
+                
+                document.querySelector('.location-option').classList.add('selected');
+                
+                setInterval(checkUsage, 30000);
+                
+                console.log('✅ Google Maps initialized successfully');
+                
+            } catch (error) {
+                console.error('❌ Error initializing map:', error);
+            }
+        }
+        
+        function addServiceMarkers() {
+            Object.keys(SERVICE_LOCATIONS).forEach(key => {
+                const location = SERVICE_LOCATIONS[key];
+                const marker = new google.maps.Marker({
+                    position: { lat: location.lat, lng: location.lng },
+                    map: map,
+                    title: location.name,
+                    icon: {
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: '#6c757d',
+                        fillOpacity: 0.8,
+                        strokeColor: 'white',
+                        strokeWeight: 2
+                    },
+                    zIndex: 100
+                });
+                
+                const infoWindow = new google.maps.InfoWindow({
+                    content: `
+                        <div style="padding: 5px;">
+                            <strong>${location.name}</strong><br>
+                            <small>${location.address}</small>
+                        </div>
+                    `
+                });
+                
+                marker.addListener('click', () => {
+                    infoWindow.open(map, marker);
+                });
+                
+                serviceMarkers[key] = marker;
+            });
+        }
+        
+        function updateServiceLocation(locationKey) {
+            currentServiceLocation = locationKey;
+            const location = SERVICE_LOCATIONS[locationKey];
+            
+            Object.keys(serviceMarkers).forEach(key => {
+                const marker = serviceMarkers[key];
+                if (key === locationKey) {
+                    marker.setIcon({
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 10,
+                        fillColor: '#ffc107',
+                        fillOpacity: 1,
+                        strokeColor: 'white',
+                        strokeWeight: 3
+                    });
+                    marker.setZIndex(1000);
+                } else {
+                    marker.setIcon({
+                        path: google.maps.SymbolPath.CIRCLE,
+                        scale: 8,
+                        fillColor: '#6c757d',
+                        fillOpacity: 0.8,
+                        strokeColor: 'white',
+                        strokeWeight: 2
+                    });
+                    marker.setZIndex(100);
+                }
+            });
+            
+            if (radiusCircle) {
+                radiusCircle.setMap(null);
+            }
+            
+            radiusCircle = new google.maps.Circle({
+                strokeColor: '#ffc107',
+                strokeOpacity: 0.8,
+                strokeWeight: 2,
+                fillColor: '#ffc107',
+                fillOpacity: 0.1,
+                map: map,
+                center: { lat: location.lat, lng: location.lng },
+                radius: 7000,  // 7km radius (approximate for 10km driving distance)
+                clickable: false
+            });
+            
+            map.setCenter({ lat: location.lat, lng: location.lng });
+            map.setZoom(12);
+        }
+        
+        async function searchAddress() {
+            console.log('🔍 Search initiated');
+            
+            checkUsage();
+            
+            if (!currentUsage.canSearch) {
+                showResult('Daily API limit reached across all users. Please try again tomorrow.', 'result-error');
+                return;
+            }
+            
+            const address = document.getElementById('addressInput').value.trim();
+            
+            if (!address) {
+                showResult('Please enter a customer address', 'result-error');
+                return;
+            }
+            
+            document.getElementById('spinner').style.display = 'block';
+            document.getElementById('result').innerHTML = '';
+            
+            directionsRenderer.setDirections({routes: []});
+            
+            const place = autocomplete.getPlace();
+            
+            if (place && place.geometry) {
+                const location = place.geometry.location;
+                const lat = location.lat();
+                const lng = location.lng();
+                const formattedAddress = place.formatted_address || place.name || address;
+                
+                calculateDrivingDistance(lat, lng, formattedAddress);
+                
+            } else {
+                geocoder.geocode({ address: address }, (results, status) => {
+                    if (status === 'OK' && results[0]) {
+                        const location = results[0].geometry.location;
+                        const lat = location.lat();
+                        const lng = location.lng();
+                        const formattedAddress = results[0].formatted_address;
+                        
+                        calculateDrivingDistance(lat, lng, formattedAddress);
+                        
+                    } else {
+                        document.getElementById('spinner').style.display = 'none';
+                        showResult('Address not found. Please try again.', 'result-error');
+                    }
+                });
+            }
+        }
+        
+        // Calculate driving distance using the actual route that will be displayed
+        function calculateDrivingDistance(destLat, destLng, address) {
+            const serviceLocation = SERVICE_LOCATIONS[currentServiceLocation];
+            const origin = new google.maps.LatLng(serviceLocation.lat, serviceLocation.lng);
+            const destination = new google.maps.LatLng(destLat, destLng);
+            
+            // Use Directions API to get the actual route and its distance
+            directionsService.route({
+                origin: origin,
+                destination: destination,
+                travelMode: google.maps.TravelMode.DRIVING,
+                unitSystem: google.maps.UnitSystem.METRIC,
+                optimizeWaypoints: true,
+                provideRouteAlternatives: true,  // Get multiple routes
+                avoidHighways: false,
+                avoidTolls: false
+            }, async (response, status) => {
+                document.getElementById('spinner').style.display = 'none';
+                
+                if (status === 'OK') {
+                    // Get all available routes
+                    const routes = response.routes;
+                    
+                    // Find the shortest route by distance (not time)
+                    let shortestRoute = routes[0];
+                    let shortestDistance = routes[0].legs[0].distance.value;
+                    
+                    for (let i = 1; i < routes.length; i++) {
+                        const routeDistance = routes[i].legs[0].distance.value;
+                        if (routeDistance < shortestDistance) {
+                            shortestDistance = routeDistance;
+                            shortestRoute = routes[i];
+                        }
+                    }
+                    
+                    // Use the shortest route
+                    const drivingDistance = shortestRoute.legs[0].distance.value / 1000;
+                    const duration = shortestRoute.legs[0].duration.text;
+                    const isInRange = drivingDistance <= 10;
+                    
+                    console.log('📊 Distance calculated:', drivingDistance.toFixed(2), 'km');
+                    console.log('📊 Checked', routes.length, 'alternative routes');
+                    console.log('📊 Shortest distance route selected');
+                    
+                    // Log usage
+                    logUsage({
+                        serviceLocation: serviceLocation.name,
+                        customerAddress: address,
+                        distance: drivingDistance.toFixed(2),
+                        inRange: isInRange,
+                        userIP: 'Web'
+                    }, function(success) {
+                        if (success) {
+                            console.log('✅ Usage logged successfully');
+                        } else {
+                            console.warn('⚠️ Usage logging failed, but continuing...');
+                        }
+                    });
+                    
+                    // Display the shortest route on map
+                    const modifiedResponse = {
+                        ...response,
+                        routes: [shortestRoute]  // Only show the shortest route
+                    };
+                    directionsRenderer.setDirections(modifiedResponse);
+                    
+                    // Add marker
+                    addSearchedMarker(destLat, destLng, address, drivingDistance, duration, isInRange);
+                    
+                    // Show result
+                    const resultClass = isInRange ? 'result-success' : 'result-failure';
+                    const resultIcon = isInRange ? '✅' : '❌';
+                    const resultText = `
+                        <strong>${resultIcon} ${address}</strong><br>
+                        From: <strong>${serviceLocation.name}</strong><br>
+                        Driving Distance: <strong>${drivingDistance.toFixed(2)} km</strong><br>
+                        Estimated Time: ${duration}<br>
+                        ${isInRange ? '✅ Within service range!' : '❌ Outside service range'}
+                        <br><small style="color: #666;">Route optimized for shortest distance</small>
+                    `;
+                    showResult(resultText, resultClass);
+                    
+                } else {
+                    showResult('Could not calculate distance. Please try again.', 'result-error');
+                }
+            });
+        }
+        // Route is now displayed directly in calculateDrivingDistance function
+        
+        function addSearchedMarker(lat, lng, address, distance, duration, isInRange) {
+            const position = { lat: lat, lng: lng };
+            const color = isInRange ? '#28a745' : '#dc3545';
+            
+            const marker = new google.maps.Marker({
+                position: position,
+                map: map,
+                title: address,
+                animation: google.maps.Animation.DROP,
+                icon: {
+                    path: google.maps.SymbolPath.BACKWARD_CLOSED_ARROW,
+                    scale: 6,
+                    fillColor: color,
+                    fillOpacity: 1,
+                    strokeColor: 'white',
+                    strokeWeight: 2,
+                    rotation: 180
+                }
+            });
+            
+            const serviceLocation = SERVICE_LOCATIONS[currentServiceLocation];
+            const infoWindow = new google.maps.InfoWindow({
+                content: `
+                    <div style="padding: 5px; max-width: 250px;">
+                        <strong>${address}</strong><br>
+                        From: ${serviceLocation.name}<br>
+                        Driving: <strong>${distance.toFixed(2)} km</strong><br>
+                        Time: ${duration}<br>
+                        Status: <strong style="color: ${color};">
+                            ${isInRange ? 'Within Range ✓' : 'Outside Range ✗'}
+                        </strong>
+                    </div>
+                `
+            });
+            
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+            
+            searchedMarkers.push({ marker: marker, window: infoWindow });
+            
+            const bounds = new google.maps.LatLngBounds();
+            bounds.extend(new google.maps.LatLng(serviceLocation.lat, serviceLocation.lng));
+            bounds.extend(position);
+            map.fitBounds(bounds);
+        }
+        
+        function showResult(message, className) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = 'result-message ' + className;
+            resultDiv.innerHTML = message;
+        }
+        
+        function clearAll() {
+            searchedMarkers.forEach(item => {
+                item.marker.setMap(null);
+                item.window.close();
+            });
+            searchedMarkers = [];
+            
+            directionsRenderer.setDirections({routes: []});
+            
+            document.getElementById('addressInput').value = '';
+            document.getElementById('result').innerHTML = '';
+            
+            const location = SERVICE_LOCATIONS[currentServiceLocation];
+            map.setCenter({ lat: location.lat, lng: location.lng });
+            map.setZoom(12);
+        }
+        
+        function handleMapError() {
+            console.error('❌ Failed to load Google Maps');
+            alert('Failed to load Google Maps. Please check your internet connection.');
+        }
+    </script>
+    
+    <script async defer 
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAh19hmN2N77PxDzHNI-K9bB2XgyxP8Og0&libraries=places,geometry&callback=initMap"
+        onerror="handleMapError()">
+    </script>
+</body>
+</html>
